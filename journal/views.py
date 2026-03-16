@@ -74,8 +74,6 @@ def index(request):
 
 @login_required
 def journal(request):
-    if request.method == "POST":
-        
     tags = MoodTag.objects.all()
     today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     draft = JournalEntry.objects.filter(user=request.user, created_at__gte=today_start).first()
