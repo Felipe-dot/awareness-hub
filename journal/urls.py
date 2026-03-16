@@ -13,4 +13,5 @@ urlpatterns = [
     path('api/save-draft/', views.save_draft, name='save_draft'),
     path('api/toggle-tag/', views.toggle_tag, name='toggle_tag'),
     path('api/create-tag/', views.create_tag, name='create_tag'),
+    path('api/word-cloud/', views.word_cloud_data, name='word_cloud_data'),
 ]

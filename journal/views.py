@@ -185,3 +185,51 @@ def mood_trend_data(request):
         data.append(entry.mood_score)
 
     return JsonResponse({'labels': labels, 'data': data})
+
+@login_required
+def word_cloud_data(request):
+    STOPWORDS = {
+        'i', 'me', 'my', 'myself', 'we', 'our', 'ours', 'ourselves', 'you',
+        'your', 'yours', 'yourself', 'yourselves', 'he', 'him', 'his',
+        'himself', 'she', 'her', 'hers', 'herself', 'it', 'its', 'itself',
+        'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which',
+        'who', 'whom', 'this', 'that', 'these', 'those', 'am', 'is', 'are',
+        'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'having',
+        'do', 'does', 'did', 'doing', 'a', 'an', 'the', 'and', 'but', 'if',
+        'or', 'because', 'as', 'until', 'while', 'of', 'at', 'by', 'for',
+        'with', 'about', 'against', 'between', 'into', 'through', 'during',
+        'before', 'after', 'above', 'below', 'to', 'from', 'up', 'down',
+        'in', 'out', 'on', 'off', 'over', 'under', 'again', 'further',
+        'then', 'once', 'here', 'there', 'when', 'where', 'why', 'how',
+        'all', 'both', 'each', 'few', 'more', 'most', 'other', 'some',
+        'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than',
+        'too', 'very', 's', 't', 'can', 'will', 'just', 'don', 'should',
+        'now', 'd', 'll', 'm', 'o', 're', 've', 'y', 'ain', 'aren', 'couldn',
+        'didn', 'doesn', 'hadn', 'hasn', 'haven', 'isn', 'ma', 'mightn',
+        'mustn', 'needn', 'shan', 'shouldn', 'wasn', 'weren', 'won', 'wouldn',
+        'feel', 'felt', 'feeling', 'think', 'thinking', 'thought', 'today',
+        'day', 'time', 'like', 'really', 'much', 'also', 'still', 'even',
+        'get', 'got', 'know', 'want', 'need', 'lot', 'things', 'something',
+        'everything', 'nothing', 'anything', 'one', 'two', 'would', 'could',
+    }
+
+    import re
+    from collections import Counter
+
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    entries = JournalEntry.objects.filter(
+        user=request.user,
+        created_at__date__gte=thirty_days_ago
+    )
+
+    word_counts = Counter()
+    for entry in entries:
+        if entry.content:
+            words = re.findall(r"[a-z']+", entry.content.lower())
+            for word in words:
+                clean = word.strip("'")
+                if clean and len(clean) > 2 and clean not in STOPWORDS:
+                    word_counts[clean] += 1
+
+    top5 = [{'word': w, 'count': c} for w, c in word_counts.most_common(5)]
+    return JsonResponse({'words': top5})
