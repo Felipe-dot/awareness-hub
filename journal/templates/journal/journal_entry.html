@@ -1,0 +1,210 @@
+{% extends "journal/layout.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <h2 class="fw-bold mb-4">Daily Journaling</h2>
+        
+        <div class="card">
+            <div class="card-body p-4 p-md-5">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Write your thoughts</h5>
+                    <span id="save-status" class="badge bg-secondary rounded-pill fw-normal px-3 py-2">
+                        Draft saved
+                    </span>
+                </div>
+
+                <form id="journal-form">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <textarea id="journal-content" class="form-control" rows="8" placeholder="How are you feeling today? What did you notice about yourself?..." style="font-size: 1.1rem; line-height: 1.6; resize: none; border: 1px solid #e2e8f0; background-color: #f8fafc;">{% if draft %}{{ draft.content }}{% endif %}</textarea>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold d-flex justify-content-between">
+                            <span>Mood Score</span>
+                            <span id="mood-val" class="text-primary fs-5">{% if draft %}{{ draft.mood_score }}{% else %}5{% endif %}</span>
+                        </label>
+                        <input type="range" class="form-range" id="mood-score" min="1" max="10" step="1" value="{% if draft %}{{ draft.mood_score }}{% else %}5{% endif %}">
+                        <div class="d-flex justify-content-between text-muted small mt-1">
+                            <span>1 - Challenging</span>
+                            <span>10 - Excellent</span>
+                        </div>
+                    </div>
+                </form>
+
+                <hr class="my-5">
+
+                {% if draft %}
+                <h5 class="fw-bold mb-3">Emotional Tags (Gestalt States)</h5>
+                <p class="text-muted small mb-4">Click to toggle the tags that best describe your current state.</p>
+                <div id="tags-container" class="d-flex flex-wrap gap-2 mb-4" data-entry-id="{{ draft.id }}">
+                    {% for tag in tags %}
+                        <button type="button" 
+                            class="btn btn-sm tag-btn {% if tag in draft.tags.all %}btn-primary{% else %}btn-outline-secondary{% endif %} rounded-pill px-3"
+                            data-tag-id="{{ tag.id }}">
+                            {{ tag.name }}
+                        </button>
+                    {% endfor %}
+                </div>
+
+                <div class="input-group mb-3" style="max-width: 300px;">
+                    <input type="text" id="new-tag-name" class="form-control form-control-sm border-end-0" placeholder="Create new tag..." aria-label="New tag">
+                    <button class="btn btn-sm btn-outline-primary border-start-0" type="button" id="create-tag-btn">Add</button>
+                </div>
+                {% else %}
+                <div class="alert alert-info border-0 bg-info bg-opacity-10 text-info px-4 py-3 rounded-3">
+                    <i class="me-2">ℹ️</i> Tags will become available once your entry auto-saves. Start typing above!
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const contentInput = document.getElementById('journal-content');
+        const scoreInput = document.getElementById('mood-score');
+        const scoreDisplay = document.getElementById('mood-val');
+        const saveStatus = document.getElementById('save-status');
+        
+        scoreInput.addEventListener('input', function() {
+            scoreDisplay.textContent = this.value;
+        });
+
+        function autoSave() {
+            saveStatus.textContent = 'Saving...';
+            saveStatus.className = 'badge bg-warning text-dark rounded-pill fw-normal px-3 py-2';
+
+            fetch("{% url 'save_draft' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    content: contentInput.value,
+                    mood_score: scoreInput.value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    saveStatus.textContent = 'Draft saved ✓';
+                    saveStatus.className = 'badge bg-success rounded-pill fw-normal px-3 py-2 text-white';
+                    
+                    if (!document.getElementById('tags-container')) {
+                        setTimeout(() => location.reload(), 1500); 
+                    }
+                } else {
+                    saveStatus.textContent = 'Save failed';
+                    saveStatus.className = 'badge bg-danger rounded-pill fw-normal px-3 py-2 text-white';
+                }
+            })
+            .catch(error => {
+                saveStatus.textContent = 'Network offline';
+                saveStatus.className = 'badge bg-secondary rounded-pill fw-normal px-3 py-2';
+            });
+        }
+
+        setInterval(autoSave, 30000);
+
+        let timeout = null;
+        [contentInput, scoreInput].forEach(el => {
+            el.addEventListener('input', function() {
+                clearTimeout(timeout);
+                saveStatus.textContent = 'Typing...';
+                saveStatus.className = 'badge bg-light text-dark border rounded-pill fw-normal px-3 py-2';
+                timeout = setTimeout(autoSave, 2000);
+            });
+        });
+
+        const tagsContainer = document.getElementById('tags-container');
+        if (tagsContainer) {
+            const entryId = tagsContainer.getAttribute('data-entry-id');
+            const tagButtons = document.querySelectorAll('.tag-btn');
+            
+            tagButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tagId = this.getAttribute('data-tag-id');
+                    const isActive = this.classList.contains('btn-primary');
+                    const action = isActive ? 'remove' : 'add';
+
+                    if (isActive) {
+                        this.classList.remove('btn-primary');
+                        this.classList.add('btn-outline-secondary');
+                    } else {
+                        this.classList.remove('btn-outline-secondary');
+                        this.classList.add('btn-primary');
+                    }
+
+                    fetch("{% url 'toggle_tag' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            entry_id: entryId,
+                            tag_id: tagId,
+                            action: action
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status !== 'success') {
+                            alert('Failed to update tag.');
+                            location.reload();
+                        }
+                    });
+                });
+            });
+
+            const createTagBtn = document.getElementById('create-tag-btn');
+            const newTagNameInput = document.getElementById('new-tag-name');
+
+            createTagBtn.addEventListener('click', function() {
+                const tagName = newTagNameInput.value.trim();
+                if (!tagName) return;
+
+                fetch("{% url 'create_tag' %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        name: tagName,
+                        entry_id: entryId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        if (!document.querySelector(`[data-tag-id="${data.tag_id}"]`)) {
+                            const newBtn = document.createElement('button');
+                            newBtn.type = 'button';
+                            newBtn.className = 'btn btn-sm tag-btn btn-primary rounded-pill px-3';
+                            newBtn.setAttribute('data-tag-id', data.tag_id);
+                            newBtn.textContent = data.tag_name;
+                            
+                            newBtn.addEventListener('click', function() {
+                                location.reload();
+                            });
+
+                            tagsContainer.appendChild(newBtn);
+                        }
+                        newTagNameInput.value = '';
+                    } else {
+                        alert(data.message);
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

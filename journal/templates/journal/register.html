@@ -1,0 +1,44 @@
+{% extends "journal/layout.html" %}
+
+{% block content %}
+<div class="row justify-content-center align-items-center" style="min-height: 70vh;">
+    <div class="col-md-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <h2 class="fw-bold">Create Account</h2>
+                    <p class="text-muted">Start tracking your well-being</p>
+                </div>
+                
+                {% if message %}
+                    <div class="alert alert-danger rounded-3">{{ message }}</div>
+                {% endif %}
+
+                <form action="{% url 'register' %}" method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="username" class="form-label text-muted small fw-bold text-uppercase">Username</label>
+                        <input class="form-control form-control-lg" type="text" name="username" id="username" placeholder="Username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label text-muted small fw-bold text-uppercase">Email</label>
+                        <input class="form-control form-control-lg" type="email" name="email" id="email" placeholder="Email Address" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label text-muted small fw-bold text-uppercase">Password</label>
+                        <input class="form-control form-control-lg" type="password" name="password" id="password" placeholder="Password" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="confirmation" class="form-label text-muted small fw-bold text-uppercase">Confirm Password</label>
+                        <input class="form-control form-control-lg" type="password" name="confirmation" id="confirmation" placeholder="Confirm Password" required>
+                    </div>
+                    <button class="btn btn-primary w-100 btn-lg mb-3" type="submit">Sign Up</button>
+                    <div class="text-center text-muted small">
+                        Already have an account? <a href="{% url 'login' %}" class="text-decoration-none fw-bold">Log in here</a>.
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

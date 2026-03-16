@@ -1,0 +1,97 @@
+{% extends "journal/layout.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="fw-bold mb-3">Dashboard</h2>
+        <p class="text-muted">Welcome back, {{ user.username }}! Here's a look at your recent well-being.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 mb-4">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-4">Mood Trend (Last 30 Days)</h5>
+                <canvas id="moodChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 mb-4">
+        <div class="card h-100 border-0 bg-primary text-white" style="background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);">
+            <div class="card-body p-4 d-flex flex-column justify-content-center">
+                <h5 class="fw-bold mb-3 text-white-50"><span class="me-2">💡</span>Pattern Insight</h5>
+                
+                {% if insight %}
+                    <h3 class="fw-bold mb-3">Your most frequent state on {{ insight.weekday }}s is "{{ insight.tag }}".</h3>
+                    <p class="text-white-50 mb-0">We noticed this occurred {{ insight.count }} times. Being aware of this pattern is a core part of Gestalt therapy.</p>
+                {% else %}
+                    <h4 class="fw-bold mb-3">No insights yet.</h4>
+                    <p class="text-white-50 mb-0">Keep journaling and adding emotional tags! We need a little more data to recognize your patterns.</p>
+                {% endif %}
+                
+                <div class="mt-4 pt-4 border-top border-white-50">
+                    <a href="{% url 'journal' %}" class="btn btn-light rounded-pill fw-bold text-primary w-100 shadow-sm">Write an Entry</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        fetch("{% url 'mood_trend_data' %}")
+            .then(response => response.json())
+            .then(data => {
+                const ctx = document.getElementById('moodChart').getContext('2d');
+                
+                let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, 'rgba(67, 97, 238, 0.5)');   
+                gradient.addColorStop(1, 'rgba(67, 97, 238, 0.0)');
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: 'Mood Score (1-10)',
+                            data: data.data,
+                            borderColor: '#4361ee',
+                            backgroundColor: gradient,
+                            borderWidth: 3,
+                            fill: true,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#4361ee',
+                            pointHoverBackgroundColor: '#4361ee',
+                            pointHoverBorderColor: '#ffffff',
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                        },
+                        scales: {
+                            y: {
+                                min: 1,
+                                max: 10,
+                                grid: { borderDash: [5, 5], color: '#e2e8f0' }
+                            },
+                            x: {
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            });
+    });
+</script>
+{% endblock %}
